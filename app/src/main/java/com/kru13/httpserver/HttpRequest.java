@@ -4,6 +4,8 @@ import android.util.Log;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -91,6 +93,15 @@ public class HttpRequest {
 
     public void setHeaders(HashMap<String, String> headers) {
         this.headers = headers;
+    }
+
+    public String getUriDecoded(){
+        try {
+            return URLDecoder.decode(uri, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            e.printStackTrace();
+            return uri;
+        }
     }
 
     @Override

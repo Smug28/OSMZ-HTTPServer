@@ -1,11 +1,17 @@
 package com.kru13.httpserver;
 
+import android.Manifest;
+import android.annotation.TargetApi;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.Toast;
 
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
 
@@ -37,8 +43,13 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 	public void onClick(View v) {
 		// TODO Auto-generated method stub
 		if (v.getId() == R.id.button1) {
+            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
+                return;
+            }
 			s = new SocketServer();
 			s.start();
+            Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
 		}
 		if (v.getId() == R.id.button2) {
 			s.close();
@@ -47,7 +58,20 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
+            Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show();
 		}
 	}
-    
+
+    @Override
+    @TargetApi(23)
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+            s = new SocketServer();
+            s.start();
+            Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
+        }
+        else if (requestCode == 88){
+            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
+        }
+    }
 }
