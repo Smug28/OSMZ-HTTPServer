@@ -3,19 +3,20 @@ package com.kru13.httpserver;
 import android.text.format.DateFormat;
 import android.util.Log;
 
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.TimeZone;
 
 /**
  * Created by smuggler on 07.02.17.
  */
 
 public class HttpResponse {
-    private static final String DATE_FORMAT = "E, dd MMM yyyy kk:mm:ss 'GMT'";
     private int statusCode = 200;
     private String statusMessage = "OK";
-    private long date = System.nanoTime();
     private String body = "";
     private String contentType = "text/html";
     private String server = "Smuggler's Awesome HTTP Server/6.66";
@@ -43,24 +44,11 @@ public class HttpResponse {
         return String.format(Locale.US, "%d %s", statusCode, statusMessage);
     }
 
-    public void setDate(Date date){
-        this.date = date.getTime();
-    }
-
-    public void setDate(long millis){
-        this.date = millis;
-    }
-
-    private String getDateString(){
-        return DateFormat.format(DATE_FORMAT, date).toString();
-    }
-
-    private Date getDate(){
-        return new Date(date);
-    }
-
-    private long getDateMillis(){
-        return date;
+    public String getServerTime() {
+        Calendar calendar = Calendar.getInstance();
+        SimpleDateFormat dateFormat = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.US);
+        dateFormat.setTimeZone(TimeZone.getTimeZone("GMT"));
+        return dateFormat.format(calendar.getTime());
     }
 
     public int getStatusCode() {
@@ -119,12 +107,14 @@ public class HttpResponse {
     public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append(String.format(Locale.US, "HTTP/1.0 %d %s\r\n", statusCode, statusMessage));
-        sb.append(getDateString());
-        sb.append("\r\n");
+        sb.append("Date: ");
+        sb.append(getServerTime());
+        sb.append("\r\nContent-Type: ");
         sb.append(contentType);
         sb.append("\r\n");
         sb.append(String.format(Locale.US, "Content-Length: %d\r\n", body.length()));
         sb.append(String.format(Locale.US, "Content-Type: %s\r\n", contentType));
+        sb.append(String.format("Server: %s\r\n", server));
         for (String key : headers.keySet()){
             sb.append(String.format(Locale.US, "%s: %s\r\n", key, headers.get(key)));
         }

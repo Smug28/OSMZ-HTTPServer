@@ -18,7 +18,7 @@ public class HttpRequest {
     private String version = null;
     private HashMap<String, String> headers = new HashMap<>();
     private int lines = 0;
-    private String originalRequest = null;
+    private String originalRequest = "";
 
     public HttpRequest(){
 

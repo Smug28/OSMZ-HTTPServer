@@ -9,6 +9,7 @@ import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
+import android.os.Build;
 import android.util.Log;
 
 public class SocketServer extends Thread {
@@ -40,19 +41,9 @@ public class SocketServer extends Thread {
                 OutputStream o = s.getOutputStream();
 	        	BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
 	        	BufferedReader in = new BufferedReader(new InputStreamReader(s.getInputStream()));
-/*
-				String result = "HTTP/1.0 200 OK\n" +
-                        "Date: Fri, 31 Dec 1999 23:59:59 GMT\n" +
-                        "Content-Type: text/html\n" +
-                        "\n" +
-                        "<html>\n" +
-                        "<body>\n" +
-                        "<h1>Happy New Millennium!</h1>\n" +
-                        "</body>\n" +
-                        "</html>";
-*/
+
                 HttpRequest request = new HttpRequest(in);
-                HttpResponse response = new HttpResponse("<html><head></head><body><h1>The request was:</h1><p>" + request.toString().replace("\n", "<br>") + "</p></body></html>");
+                HttpResponse response = new HttpResponse(String.format("<html><head><title>%s %s</title></head><body><h1>The request was:</h1><p>", Build.MANUFACTURER, Build.MODEL) + request.toString().replace("\n", "<br>") + "</p></body></html>");
 
 	            out.write(response.toString());
                 out.flush();
