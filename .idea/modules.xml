@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/HTTPServer.iml" filepath="$PROJECT_DIR$/HTTPServer.iml" />
       <module fileurl="file://$PROJECT_DIR$/OSMZ-HTTPServer.iml" filepath="$PROJECT_DIR$/OSMZ-HTTPServer.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>

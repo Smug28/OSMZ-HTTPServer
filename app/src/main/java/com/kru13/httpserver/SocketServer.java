@@ -1,8 +1,11 @@
 package com.kru13.httpserver;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -52,12 +55,13 @@ public class SocketServer extends Thread {
                     if (!request.getUri().equals("/storage") && !request.getUri().equals("/storage/")){
                         root = new File(request.getUriDecoded());
                     }
-                    if (root != null && root.listFiles() != null) {
+                    if (root != null && root.isFile()){
+                        response = new HttpResponse();
+                        response.setBody(root);
+                    }
+                    else if (root != null && root.listFiles() != null) {
                         for (File f : root.listFiles()) {
-                            if (f.isDirectory())
-                                content.append(String.format("<li><a href=\"%s\">%s</a></li>", f.getPath(), f.getName()));
-                            else
-                                content.append(String.format("<li>%s</li>", f.getName()));
+                            content.append(String.format("<li><a href=\"%s\">%s</a></li>", f.getPath(), f.getName()));
                         }
                         response = new HttpResponse(String.format("<html><head><title>%s %s</title></head><body><h1>External storage:</h1><a href=\"%s\">&lt;&lt; %s</a><ul>", Build.MANUFACTURER, Build.MODEL, root.getParentFile().getPath(), root.getParentFile().getName()) + content.toString() + "</ul></body></html>");
                     }
@@ -69,7 +73,16 @@ public class SocketServer extends Thread {
 
 	            out.write(response.toString());
                 out.flush();
-	            
+                if (response.getBody() instanceof File) {
+                    File f = (File) response.getBody();
+                    FileInputStream r = new FileInputStream(f);
+                    byte[] bytes = new byte[1024];
+                    int len = 0;
+                    while ((len = r.read(bytes, 0, 1024)) > 0)
+                        o.write(bytes, 0, len);
+                    o.flush();
+                }
+                o.close();
                 s.close();
                 Log.d("SERVER", "Socket Closed");
             }

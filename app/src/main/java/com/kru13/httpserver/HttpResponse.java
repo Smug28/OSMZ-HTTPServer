@@ -2,12 +2,15 @@ package com.kru13.httpserver;
 
 import android.text.format.DateFormat;
 import android.util.Log;
+import android.webkit.MimeTypeMap;
 
+import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.StringTokenizer;
 import java.util.TimeZone;
 
 /**
@@ -17,7 +20,7 @@ import java.util.TimeZone;
 public class HttpResponse {
     private int statusCode = 200;
     private String statusMessage = "OK";
-    private String body = "";
+    private Object body = "";
     private String contentType = "text/html";
     private String server = "Smuggler's Awesome HTTP Server/6.66";
     private HashMap<String, String> headers = new HashMap<>();
@@ -83,12 +86,24 @@ public class HttpResponse {
         this.contentType = contentType;
     }
 
-    public String getBody() {
+    public Object getBody() {
         return body;
     }
 
-    public void setBody(String body) {
+    public void setBody(Object body) {
         this.body = body;
+        if (body instanceof File){
+            setContentType(getMimeType(((File) body).getAbsolutePath()));
+        }
+    }
+
+    public static String getMimeType(String url) {
+        String type = null;
+        String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+        if (extension != null) {
+            type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+        }
+        return type;
     }
 
     public String getServer() {
@@ -112,16 +127,24 @@ public class HttpResponse {
         sb.append("\r\nContent-Type: ");
         sb.append(contentType);
         sb.append("\r\n");
-        sb.append(String.format(Locale.US, "Content-Length: %d\r\n", body.length()));
-        sb.append(String.format(Locale.US, "Content-Type: %s\r\n", contentType));
+        sb.append(String.format(Locale.US, "Content-Length: %d\r\n", getContentLength()));
         sb.append(String.format("Server: %s\r\n", server));
         for (String key : headers.keySet()){
             sb.append(String.format(Locale.US, "%s: %s\r\n", key, headers.get(key)));
         }
         sb.append("\r\n");
-        sb.append(body);
+        if (body instanceof String)
+            sb.append(body);
         String result = sb.toString();
         Log.d("SERVER_RESPONSE", result);
         return result;
+    }
+
+    private long getContentLength() {
+        if (body instanceof String)
+            return ((String) body).length();
+        if (body instanceof File)
+            return ((File) body).length();
+        return 0;
     }
 }
