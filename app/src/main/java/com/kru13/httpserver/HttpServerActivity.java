@@ -3,19 +3,32 @@ package com.kru13.httpserver;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
-import android.os.Build;
-import android.os.Bundle;
+import android.os.*;
+import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.ScrollView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
 
 	private SocketServer s;
+    private TextView log;
+    private ScrollView scrollView;
+    private Handler handler = new Handler(){
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            String txt = log.getText() != null ? log.getText().toString() : "";
+            log.setText(txt + ((com.kru13.httpserver.Message) msg.obj).toString() + "\n");
+            scrollView.fullScroll(View.FOCUS_DOWN);
+        }
+    };
 	
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,6 +41,8 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
         btn1.setOnClickListener(this);
         btn2.setOnClickListener(this);
 
+        log = (TextView) findViewById(R.id.log);
+        scrollView = (ScrollView) findViewById(R.id.scroll_view);
     }
 
     @Override
@@ -45,7 +60,7 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
                 return;
             }
-			s = new SocketServer();
+			s = new SocketServer(handler);
 			s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
 		}
@@ -64,7 +79,7 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     @TargetApi(23)
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-            s = new SocketServer();
+            s = new SocketServer(handler);
             s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
         }
