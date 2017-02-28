@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.os.*;
 import android.os.Message;
 import android.support.annotation.NonNull;
+import android.support.design.widget.TextInputEditText;
 import android.support.v7.app.AppCompatActivity;
 import android.view.Menu;
 import android.view.View;
@@ -15,11 +16,14 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.util.concurrent.Semaphore;
+
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
 
 	private SocketServer s;
     private TextView log;
     private ScrollView scrollView;
+    private TextInputEditText maxThreads;
     private Handler handler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
@@ -37,6 +41,8 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 
         Button btn1 = (Button)findViewById(R.id.button1);
         Button btn2 = (Button)findViewById(R.id.button2);
+
+        maxThreads = (TextInputEditText) findViewById(R.id.max_threads);
 
         btn1.setOnClickListener(this);
         btn2.setOnClickListener(this);
@@ -60,7 +66,12 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
                 return;
             }
-			s = new SocketServer(handler);
+            try {
+                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
+            } catch (Exception e){
+                Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
+                return;
+            }
 			s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
 		}
@@ -79,7 +90,12 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     @TargetApi(23)
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
-            s = new SocketServer(handler);
+            try {
+                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
+            } catch (Exception e){
+                Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
+                return;
+            }
             s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
         }

@@ -12,6 +12,7 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.Semaphore;
 
 import android.os.Build;
 import android.os.Environment;
@@ -24,9 +25,12 @@ public class SocketServer extends Thread {
 	public final int port = 12345;
 	boolean bRunning;
 	private Handler handler;
+	private Semaphore semaphore;
 
-	public SocketServer(Handler handler){
+	public SocketServer(Handler handler, int maxThreads){
 		this.handler = handler;
+		this.semaphore = new Semaphore(maxThreads, true);
+		Log.d("SERVER", String.format("Started with max %d threads", maxThreads));
 	}
 	
 	public void close() {
@@ -48,7 +52,7 @@ public class SocketServer extends Thread {
             	Log.d("SERVER", "Socket Waiting for connection");
                 Socket s = serverSocket.accept(); 
                 Log.d("SERVER", "Socket Accepted");
-                new ClientThread(s, handler).start();
+                new ClientThread(s, handler, semaphore).start();
             }
         } 
         catch (IOException e) {

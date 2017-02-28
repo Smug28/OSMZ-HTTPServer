@@ -13,6 +13,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.util.concurrent.Semaphore;
 
 /**
  * Created by smuggler on 21.02.17.
@@ -21,21 +22,35 @@ import java.net.Socket;
 public class ClientThread extends Thread {
     private final Handler messageHandler;
     private final Socket socket;
+    private final Semaphore semaphore;
 
-    public ClientThread(Socket socket, Handler handler){
+    public ClientThread(Socket socket, Handler handler, Semaphore semaphore){
         this.messageHandler = handler;
         this.socket = socket;
+        this.semaphore = semaphore;
     }
 
     @Override
     public void run() {
+        boolean acquired = semaphore.tryAcquire();
+        OutputStream o = null;
         try {
-            OutputStream o = socket.getOutputStream();
+            o = socket.getOutputStream();
             BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            HttpRequest request = new HttpRequest(in);
             HttpResponse response;
+            if (!acquired){
+                response = new HttpResponse(500, "Server too busy", String.format("<html><head><title>%s %s</title></head><body><h1>Server too busy</h1><p>Please try again later...</p></body></html>", Build.MANUFACTURER, Build.MODEL));
+                out.write(response.toString());
+                out.flush();
+                o.close();
+                socket.close();
+                Log.d("SERVER", "Socket Closed - server busy");
+                return;
+            }
+
+            HttpRequest request = new HttpRequest(in);
             if (request.getUri().startsWith("/storage")){
                 StringBuilder content = new StringBuilder();
                 File root = Environment.getExternalStorageDirectory();
@@ -77,6 +92,18 @@ public class ClientThread extends Thread {
             Log.d("SERVER", "Socket Closed");
         } catch (IOException e) {
             e.printStackTrace();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        finally {
+            if (acquired)
+                semaphore.release();
+            if (!socket.isClosed())
+                try {
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
         }
     }
 }
