@@ -66,23 +66,31 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
                 return;
             }
-            try {
-                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
-            } catch (Exception e){
-                Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
+            if (s != null){
+                Toast.makeText(this, "Server already running", Toast.LENGTH_SHORT).show();
                 return;
             }
-			s.start();
-            Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
+            try {
+                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
+                s.start();
+                Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
+            } catch (Exception e){
+                Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
+            }
 		}
 		if (v.getId() == R.id.button2) {
-			s.close();
-			try {
-				s.join();
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-            Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show();
+            try {
+                s.close();
+                try {
+                    s.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show();
+                s = null;
+            } catch (Exception e){
+                Toast.makeText(this, "Server already stopped", Toast.LENGTH_SHORT).show();
+            }
 		}
 	}
 
