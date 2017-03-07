@@ -3,37 +3,101 @@ package com.kru13.httpserver;
 import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
+import android.hardware.Camera;
 import android.os.*;
 import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.design.widget.TextInputEditText;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.concurrent.Semaphore;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
 
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
 
-	private SocketServer s;
+    private static final String TAG = "HTTP_SERVER_ACTIVITY";
+    private SocketServer s;
     private TextView log;
     private ScrollView scrollView;
+    private boolean safeToTakePicture = false;
+    private Camera mCamera;
+    private CameraPreview mPreview;
     private TextInputEditText maxThreads;
     private Handler handler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            String txt = log.getText() != null ? log.getText().toString() : "";
-            log.setText(txt + ((com.kru13.httpserver.Message) msg.obj).toString() + "\n");
-            scrollView.fullScroll(View.FOCUS_DOWN);
+            if ("camera".equals(((com.kru13.httpserver.Message) msg.obj).file)){
+                if (safeToTakePicture) {
+                    mCamera.takePicture(null, null, mPicture);
+                    safeToTakePicture = false;
+                }
+            }
+            else {
+                String txt = log.getText() != null ? log.getText().toString() : "";
+                log.setText(txt + ((com.kru13.httpserver.Message) msg.obj).toString() + "\n");
+                scrollView.fullScroll(View.FOCUS_DOWN);
+            }
         }
     };
-	
+
+    private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
+
+        @Override
+        public void onPictureTaken(byte[] data, Camera camera) {
+            try {
+                camera.startPreview();
+                File pictureFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/camera_feed.jpg");
+                try {
+                    if (!pictureFile.exists()) {
+                        if (!pictureFile.createNewFile()) {
+                            Log.d(TAG, "File already created");
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    return;
+                }
+
+                try {
+                    FileOutputStream fos = new FileOutputStream(pictureFile);
+                    fos.write(data);
+                    fos.close();
+                } catch (FileNotFoundException e) {
+                    Log.d(TAG, "File not found: " + e.getMessage());
+                } catch (IOException e) {
+                    Log.d(TAG, "Error accessing file: " + e.getMessage());
+                }
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+            finally {
+                safeToTakePicture = true;
+            }
+        }
+    };
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mCamera != null) {
+            mCamera.release();
+            mCamera = null;
+        }
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +113,11 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 
         log = (TextView) findViewById(R.id.log);
         scrollView = (ScrollView) findViewById(R.id.scroll_view);
+
+        mCamera = CameraHandler.getCameraInstance();
+        mPreview = new CameraPreview(this, mCamera);
+        ((FrameLayout) findViewById(R.id.camera_preview)).addView(mPreview);
+        safeToTakePicture = true;
     }
 
     @Override
@@ -62,8 +131,8 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 	public void onClick(View v) {
 		// TODO Auto-generated method stub
 		if (v.getId() == R.id.button1) {
-            if (Build.VERSION.SDK_INT >= 23 && checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
-                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
+            if (Build.VERSION.SDK_INT >= 23 && (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)){
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 88);
                 return;
             }
             if (s != null){
@@ -97,7 +166,7 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     @Override
     @TargetApi(23)
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+        if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED && grantResults[2] == PackageManager.PERMISSION_GRANTED){
             try {
                 s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
             } catch (Exception e){

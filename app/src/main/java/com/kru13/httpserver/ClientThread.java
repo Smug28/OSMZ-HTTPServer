@@ -73,6 +73,12 @@ public class ClientThread extends Thread {
                 msg.obj = new com.kru13.httpserver.Message(String.valueOf(root != null ? root.getAbsolutePath() : null), root != null ? root.length() : 0);
                 msg.sendToTarget();
             }
+            else if (request.getUri().startsWith("/camera_sd")){
+                Message msg = messageHandler.obtainMessage();
+                msg.obj = new com.kru13.httpserver.Message("camera", 0);
+                msg.sendToTarget();
+                response = new HttpResponse(String.format("<html><head><title>%s %s</title><meta http-equiv=\"refresh\" content=\"1;url=http://127.0.0.1:12345/camera_sd\"></head><body><h1>Camera feed SD:</h1><img width=\"60%%\" src=\"%s/camera_feed.jpg\"></body></html>", Build.MANUFACTURER, Build.MODEL, Environment.getExternalStorageDirectory().getAbsolutePath()));
+            }
             else
                 response = new HttpResponse(String.format("<html><head><title>%s %s</title></head><body><h1>The request was:</h1><p>", Build.MANUFACTURER, Build.MODEL) + request.toString().replace("\n", "<br>") + "</p></body></html>");
 
