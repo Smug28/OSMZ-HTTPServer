@@ -1,29 +1,18 @@
 package com.kru13.httpserver;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.Semaphore;
 
-import android.os.Build;
-import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 
 public class SocketServer extends Thread {
 	
-	ServerSocket serverSocket;
+	private ServerSocket serverSocket;
 	public final int port = 12345;
-	boolean bRunning;
+	private boolean bRunning;
 	private Handler handler;
 	private Semaphore semaphore;
 

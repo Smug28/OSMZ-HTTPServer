@@ -35,10 +35,10 @@
             android:layout_height="wrap_content" />
     </android.support.design.widget.TextInputLayout>
     <FrameLayout
-        android:visibility="visible"
+        android:visibility="invisible"
         android:id="@+id/camera_preview"
         android:layout_width="match_parent"
-        android:layout_height="0dp">
+        android:layout_height="1dp">
 
     </FrameLayout>
     <ScrollView

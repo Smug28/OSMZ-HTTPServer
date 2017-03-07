@@ -5,10 +5,12 @@ import android.util.Log;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.MalformedURLException;
 import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 /**
  * Created by smuggler on 07.02.17.
@@ -75,6 +77,27 @@ public class HttpRequest {
         return uri;
     }
 
+    public HashMap<String, String> getUriParams(){
+        HashMap<String, String> params = new HashMap<>();
+        if (uri == null)
+            return params;
+        if (!uri.contains("?"))
+            return params;
+        String[] p = uri.split("\\?");
+        if (p.length != 2)
+            return params;
+        String[] p2 = p[1].split("&");
+        for (String s : p2){
+            try {
+                String[] kv = s.split("=");
+                params.put(kv[0], kv[1]);
+            } catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        return params;
+    }
+
     public void setUri(String uri) {
         this.uri = uri;
     }
@@ -96,11 +119,15 @@ public class HttpRequest {
     }
 
     public String getUriDecoded(){
+        return decodeString(uri);
+    }
+
+    private String decodeString(String s){
         try {
-            return URLDecoder.decode(uri, "UTF-8");
+            return URLDecoder.decode(s, "UTF-8");
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
-            return uri;
+            return s;
         }
     }
 

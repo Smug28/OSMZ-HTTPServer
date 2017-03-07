@@ -23,10 +23,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
 
     private static final String TAG = "HTTP_SERVER_ACTIVITY";
+    private static final String[] NEEDED_PERMISSIONS = new String[]{ Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA };
     private SocketServer s;
     private TextView log;
     private ScrollView scrollView;
@@ -90,15 +92,6 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     };
 
     @Override
-    protected void onStop() {
-        super.onStop();
-        if (mCamera != null) {
-            mCamera.release();
-            mCamera = null;
-        }
-    }
-
-    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_http_server);
@@ -114,10 +107,23 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
         log = (TextView) findViewById(R.id.log);
         scrollView = (ScrollView) findViewById(R.id.scroll_view);
 
+        /*
         mCamera = CameraHandler.getCameraInstance();
         mPreview = new CameraPreview(this, mCamera);
         ((FrameLayout) findViewById(R.id.camera_preview)).addView(mPreview);
         safeToTakePicture = true;
+        */
+        CameraHandler handler = new CameraHandler(this);
+        handler.open(0);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if (mCamera != null) {
+            mCamera.release();
+            mCamera = null;
+        }
     }
 
     @Override
@@ -128,11 +134,12 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     }
 
 	@Override
+    @SuppressWarnings("NewApi")
 	public void onClick(View v) {
 		// TODO Auto-generated method stub
 		if (v.getId() == R.id.button1) {
-            if (Build.VERSION.SDK_INT >= 23 && (checkSelfPermission(Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED)){
-                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.CAMERA}, 88);
+            if (!hasAllPesmissions()){
+                requestPermissions(NEEDED_PERMISSIONS, 88);
                 return;
             }
             if (s != null){
@@ -163,10 +170,35 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 		}
 	}
 
+    private boolean hasAllPesmissions(){
+        if (Build.VERSION.SDK_INT < 23)
+            return true;
+        for (String permission : NEEDED_PERMISSIONS){
+            if (checkSelfPermission(permission) != PackageManager.PERMISSION_GRANTED)
+                return false;
+        }
+        return true;
+    }
+
+    @TargetApi(23)
+    private boolean handlePermissionResult(@NonNull String[] permissions, @NonNull int[] grantResults){
+        ArrayList<String> notGranted = new ArrayList<>();
+        for (int i = 0; i < permissions.length; i++){
+            if (grantResults[i] != PackageManager.PERMISSION_GRANTED)
+                notGranted.add(permissions[i]);
+        }
+        if (notGranted.size() == 0)
+            return true;
+        String[] array = new String[notGranted.size()];
+        notGranted.toArray(array);
+        requestPermissions(array, 88);
+        return false;
+    }
+
     @Override
     @TargetApi(23)
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        if (requestCode == 88 && grantResults[0] == PackageManager.PERMISSION_GRANTED && grantResults[1] == PackageManager.PERMISSION_GRANTED && grantResults[2] == PackageManager.PERMISSION_GRANTED){
+        if (requestCode == 88 && handlePermissionResult(permissions, grantResults)){
             try {
                 s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
             } catch (Exception e){
@@ -175,9 +207,6 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
             }
             s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
-        }
-        else if (requestCode == 88){
-            requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, 88);
         }
     }
 }

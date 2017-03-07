@@ -4,6 +4,11 @@ import android.os.*;
 import android.os.Message;
 import android.util.Log;
 
+import com.kru13.httpserver.pages.CameraStreamPage;
+import com.kru13.httpserver.pages.DefaultPage;
+import com.kru13.httpserver.pages.ErrorPage;
+import com.kru13.httpserver.pages.StoragePage;
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -41,7 +46,7 @@ public class ClientThread extends Thread {
 
             HttpResponse response;
             if (!acquired){
-                response = new HttpResponse(500, "Server too busy", String.format("<html><head><title>%s %s</title></head><body><h1>Server too busy</h1><p>Please try again later...</p></body></html>", Build.MANUFACTURER, Build.MODEL));
+                response = new ErrorPage(null, messageHandler).getErrorResponse(500, "Server too busy", "Please try again later...");
                 out.write(response.toString());
                 out.flush();
                 o.close();
@@ -52,35 +57,13 @@ public class ClientThread extends Thread {
 
             HttpRequest request = new HttpRequest(in);
             if (request.getUri().startsWith("/storage")){
-                StringBuilder content = new StringBuilder();
-                File root = Environment.getExternalStorageDirectory();
-                if (!request.getUri().equals("/storage") && !request.getUri().equals("/storage/")){
-                    root = new File(request.getUriDecoded());
-                }
-                if (root != null && root.isFile()){
-                    response = new HttpResponse();
-                    response.setBody(root);
-                }
-                else if (root != null && root.listFiles() != null) {
-                    for (File f : root.listFiles()) {
-                        content.append(String.format("<li><a href=\"%s\">%s</a></li>", f.getPath(), f.getName()));
-                    }
-                    response = new HttpResponse(String.format("<html><head><title>%s %s</title></head><body><h1>External storage:</h1><a href=\"%s\">&lt;&lt; %s</a><ul>", Build.MANUFACTURER, Build.MODEL, root.getParentFile().getPath(), root.getParentFile().getName()) + content.toString() + "</ul></body></html>");
-                }
-                else
-                    response = new HttpResponse(404, "Not Found", "<html><head><title>%s %s</title></head><body><h1>File not found</h1><a href=\"/storage\">Back to storage</a></body></html>");
-                Message msg = messageHandler.obtainMessage();
-                msg.obj = new com.kru13.httpserver.Message(String.valueOf(root != null ? root.getAbsolutePath() : null), root != null ? root.length() : 0);
-                msg.sendToTarget();
+                response = new StoragePage(request, messageHandler).getResponse();
             }
             else if (request.getUri().startsWith("/camera_sd")){
-                Message msg = messageHandler.obtainMessage();
-                msg.obj = new com.kru13.httpserver.Message("camera", 0);
-                msg.sendToTarget();
-                response = new HttpResponse(String.format("<html><head><title>%s %s</title><meta http-equiv=\"refresh\" content=\"1;url=http://127.0.0.1:12345/camera_sd\"></head><body><h1>Camera feed SD:</h1><img width=\"60%%\" src=\"%s/camera_feed.jpg\"></body></html>", Build.MANUFACTURER, Build.MODEL, Environment.getExternalStorageDirectory().getAbsolutePath()));
+                response = new CameraStreamPage(request, messageHandler).getResponse();
             }
             else
-                response = new HttpResponse(String.format("<html><head><title>%s %s</title></head><body><h1>The request was:</h1><p>", Build.MANUFACTURER, Build.MODEL) + request.toString().replace("\n", "<br>") + "</p></body></html>");
+                response = new DefaultPage(request, messageHandler).getResponse();
 
             out.write(response.toString());
             out.flush();
