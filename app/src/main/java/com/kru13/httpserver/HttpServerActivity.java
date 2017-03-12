@@ -4,6 +4,7 @@ import android.Manifest;
 import android.annotation.TargetApi;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
+import android.hardware.camera2.CameraManager;
 import android.os.*;
 import android.os.Message;
 import android.support.annotation.NonNull;
@@ -23,6 +24,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 
 public class HttpServerActivity extends AppCompatActivity implements OnClickListener {
@@ -36,15 +38,13 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     private Camera mCamera;
     private CameraPreview mPreview;
     private TextInputEditText maxThreads;
+    private CameraHandler mCameraHandler;
     private Handler handler = new Handler(){
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             if ("camera".equals(((com.kru13.httpserver.Message) msg.obj).file)){
-                if (safeToTakePicture) {
-                    mCamera.takePicture(null, null, mPicture);
-                    safeToTakePicture = false;
-                }
+                mCameraHandler.registerListener(new MyCameraListener((com.kru13.httpserver.Message) msg.obj));
             }
             else {
                 String txt = log.getText() != null ? log.getText().toString() : "";
@@ -113,8 +113,8 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
         ((FrameLayout) findViewById(R.id.camera_preview)).addView(mPreview);
         safeToTakePicture = true;
         */
-        CameraHandler handler = new CameraHandler(this);
-        handler.open(0);
+        mCameraHandler = new CameraHandler(this);
+        mCameraHandler.open(0);
     }
 
     @Override
@@ -207,6 +207,21 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
             }
             s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    class MyCameraListener implements CameraListener {
+        com.kru13.httpserver.Message message;
+        public MyCameraListener(com.kru13.httpserver.Message msg){
+            message = msg;
+        }
+
+        @Override
+        public void onNewImage(ByteBuffer image) {
+            synchronized (message) {
+                message.setBuffer(ClientThread.getActiveArray(image));
+                message.notifyAll();
+            }
         }
     }
 }

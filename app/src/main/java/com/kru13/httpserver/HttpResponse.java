@@ -5,6 +5,7 @@ import android.util.Log;
 import android.webkit.MimeTypeMap;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
@@ -24,6 +25,8 @@ public class HttpResponse {
     private String contentType = "text/html";
     private String server = "Smuggler's Awesome HTTP Server/6.66";
     private HashMap<String, String> headers = new HashMap<>();
+    private String boundary = null;
+    private int mContentLength = -1;
 
     public HttpResponse(){
 
@@ -106,6 +109,14 @@ public class HttpResponse {
         return type;
     }
 
+    public void setBoundary(String boundary){
+        this.boundary = boundary;
+    }
+
+    public String getBoundary(){
+        return boundary;
+    }
+
     public String getServer() {
         return server;
     }
@@ -118,17 +129,25 @@ public class HttpResponse {
         headers.put(key, value);
     }
 
+    public void setContentLength(int length){
+        mContentLength = length;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format(Locale.US, "HTTP/1.0 %d %s\r\n", statusCode, statusMessage));
-        sb.append("Date: ");
-        sb.append(getServerTime());
-        sb.append("\r\nContent-Type: ");
+        if (boundary == null) {
+            sb.append(String.format(Locale.US, "HTTP/1.0 %d %s\r\n", statusCode, statusMessage));
+            sb.append("Date: ");
+            sb.append(getServerTime());
+            sb.append(String.format("\r\nServer: %s\r\n", server));
+        }
+        else
+            sb.append(boundary).append("\r\n");
+        sb.append("Content-Type: ");
         sb.append(contentType);
         sb.append("\r\n");
         sb.append(String.format(Locale.US, "Content-Length: %d\r\n", getContentLength()));
-        sb.append(String.format("Server: %s\r\n", server));
         for (String key : headers.keySet()){
             sb.append(String.format(Locale.US, "%s: %s\r\n", key, headers.get(key)));
         }
@@ -141,10 +160,14 @@ public class HttpResponse {
     }
 
     private long getContentLength() {
+        if (mContentLength != -1)
+            return mContentLength;
         if (body instanceof String)
             return ((String) body).length();
         if (body instanceof File)
             return ((File) body).length();
+        if (body instanceof ByteBuffer)
+            return ((ByteBuffer) body).capacity();
         return 0;
     }
 }

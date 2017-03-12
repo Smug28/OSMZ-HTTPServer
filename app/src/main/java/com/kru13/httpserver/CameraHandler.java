@@ -42,10 +42,19 @@ public class CameraHandler {
     private ImageReader mImageReader;
     private Size mImageSize;
     private boolean opened = false;
+    ArrayList<CameraListener> mListeners = new ArrayList<>();
 
     public CameraHandler(Context context) {
         mApplicationContext = context.getApplicationContext();
         mCameraManager = (CameraManager) context.getSystemService(Context.CAMERA_SERVICE);
+    }
+
+    public void registerListener(CameraListener listener){
+        mListeners.add(listener);
+    }
+
+    public void removeListener(CameraListener listener){
+        mListeners.remove(listener);
     }
 
     public void open(int id) {
@@ -70,7 +79,9 @@ public class CameraHandler {
                         @Override
                         public void onImageAvailable(ImageReader imageReader) {
                             Image image = imageReader.acquireNextImage();
-                            Log.d(TAG, String.format("Image captured %dx%d, Format: %s", image.getWidth(), image.getHeight()));
+                            //Log.d(TAG, String.format("Image captured %dx%d", image.getWidth(), image.getHeight()));
+                            for (CameraListener listener : mListeners)
+                                listener.onNewImage(image.getPlanes()[0].getBuffer());
                             image.close();
                         }
                     }, null);

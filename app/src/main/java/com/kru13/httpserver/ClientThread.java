@@ -18,6 +18,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
 
 /**
@@ -33,6 +34,18 @@ public class ClientThread extends Thread {
         this.messageHandler = handler;
         this.socket = socket;
         this.semaphore = semaphore;
+    }
+
+    public static byte[] getActiveArray(ByteBuffer buffer) {
+        byte[] ret = new byte[buffer.remaining()];
+        if (buffer.hasArray()) {
+            byte[] array = buffer.array();
+            System.arraycopy(array, buffer.arrayOffset() + buffer.position(), ret, 0, ret.length);
+        }
+        else {
+            buffer.slice().get(ret);
+        }
+        return ret;
     }
 
     @Override
@@ -62,6 +75,25 @@ public class ClientThread extends Thread {
             else if (request.getUri().startsWith("/camera_sd")){
                 response = new CameraStreamPage(request, messageHandler).getResponse();
             }
+            else if (request.getUri().startsWith("/camera_stream.mjpeg")){
+                response = new CameraStreamPage(request, messageHandler).getResponseMultipart();
+                response.setContentLength(0);
+                response.setContentType("multipart/x-mixed-replace; boundary=--BoundaryString");
+                o.write(response.toString().getBytes());
+                //o.write(getActiveArray((ByteBuffer) response.getBody()));
+                o.write("\r\n".getBytes());
+                o.flush();
+                while (true){
+                    response = new CameraStreamPage(request, messageHandler).getResponseMultipart();
+                    response.setBoundary("--BoundaryString");
+                    response.setContentType("image/jpeg");
+                    o.write(response.toString().getBytes());
+                    o.write(getActiveArray((ByteBuffer) response.getBody()));
+                    o.write("\r\n\r\n".getBytes());
+                    //o.flush();
+                    o.flush();
+                }
+            }
             else
                 response = new DefaultPage(request, messageHandler).getResponse();
 
@@ -74,6 +106,10 @@ public class ClientThread extends Thread {
                 int len = 0;
                 while ((len = r.read(bytes, 0, 1024)) > 0)
                     o.write(bytes, 0, len);
+                o.flush();
+            }
+            else if (response.getBody() instanceof ByteBuffer){
+                o.write(getActiveArray((ByteBuffer) response.getBody()));
                 o.flush();
             }
             o.close();
