@@ -12,7 +12,7 @@ public class SocketServer extends Thread {
 	
 	private ServerSocket serverSocket;
 	public final int port = 12345;
-	private boolean bRunning;
+	private static boolean bRunning = false;
 	private Handler handler;
 	private Semaphore semaphore;
 
@@ -39,7 +39,7 @@ public class SocketServer extends Thread {
             bRunning = true;
             while (bRunning) {
             	Log.d("SERVER", "Socket Waiting for connection");
-                Socket s = serverSocket.accept(); 
+                Socket s = serverSocket.accept();
                 Log.d("SERVER", "Socket Accepted");
                 new ClientThread(s, handler, semaphore).start();
             }
@@ -58,4 +58,7 @@ public class SocketServer extends Thread {
         }
     }
 
+    public static boolean isRunning(){
+		return bRunning;
+	}
 }

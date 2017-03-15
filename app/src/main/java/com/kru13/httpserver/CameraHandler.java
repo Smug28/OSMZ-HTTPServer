@@ -41,8 +41,9 @@ public class CameraHandler {
     private CameraManager mCameraManager;
     private ImageReader mImageReader;
     private Size mImageSize;
+    private CameraCaptureSession mCaptureSession;
     private boolean opened = false;
-    ArrayList<CameraListener> mListeners = new ArrayList<>();
+    CameraListener mListeners = null;
 
     public CameraHandler(Context context) {
         mApplicationContext = context.getApplicationContext();
@@ -50,11 +51,7 @@ public class CameraHandler {
     }
 
     public void registerListener(CameraListener listener){
-        mListeners.add(listener);
-    }
-
-    public void removeListener(CameraListener listener){
-        mListeners.remove(listener);
+        mListeners = listener;
     }
 
     public void open(int id) {
@@ -66,8 +63,13 @@ public class CameraHandler {
                 return;
             CameraCharacteristics characteristics = mCameraManager.getCameraCharacteristics(cameras[id]);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
-            Size[] sizes = map.getHighSpeedVideoSizes();
-            mImageSize = sizes[sizes.length - 1];
+            Size[] sizes = map.getOutputSizes(ImageFormat.JPEG);
+            for (Size s : sizes) {
+                if (s.getHeight() <= 720) {
+                    mImageSize = s;
+                    break;
+                }
+            }
 
             mCameraManager.openCamera(cameras[id], new CameraDevice.StateCallback() {
                 @Override
@@ -80,8 +82,10 @@ public class CameraHandler {
                         public void onImageAvailable(ImageReader imageReader) {
                             Image image = imageReader.acquireNextImage();
                             //Log.d(TAG, String.format("Image captured %dx%d", image.getWidth(), image.getHeight()));
-                            for (CameraListener listener : mListeners)
-                                listener.onNewImage(image.getPlanes()[0].getBuffer());
+                            if (mListeners != null)
+                                mListeners.onNewImage(image.getPlanes()[0].getBuffer());
+                            else
+                                mCaptureSession.close();
                             image.close();
                         }
                     }, null);
@@ -93,6 +97,7 @@ public class CameraHandler {
                             public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
                                 Log.d(TAG, "onConfigured");
                                 try {
+                                    mCaptureSession = cameraCaptureSession;
                                     CaptureRequest.Builder builder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
                                     builder.addTarget(mImageReader.getSurface());
                                     CaptureRequest request = builder.build();
@@ -101,11 +106,13 @@ public class CameraHandler {
                                         public void onCaptureFailed(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull CaptureFailure failure) {
                                             Log.e(TAG, "onCaptureFailed");
                                             Log.e(TAG, String.valueOf(failure.getReason()));
+                                            opened = false;
                                         }
 
                                         @Override
                                         public void onCaptureSequenceAborted(@NonNull CameraCaptureSession session, int sequenceId) {
                                             Log.e(TAG, "onCaptureSequenceAborted");
+                                            opened = false;
                                         }
 
                                         @Override
@@ -116,6 +123,9 @@ public class CameraHandler {
                                         @Override
                                         public void onCaptureSequenceCompleted(@NonNull CameraCaptureSession session, int sequenceId, long frameNumber) {
                                             Log.d(TAG, "IMAGE_SEQUENCE_CAPTURED");
+                                            if (mListeners != null)
+                                                mListeners.onNewImage(null);
+                                            opened = false;
                                         }
                                     }, null);
                                 } catch (CameraAccessException e) {
@@ -126,10 +136,12 @@ public class CameraHandler {
                             @Override
                             public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
                                 Log.e(TAG, "onConfigureFailed");
+                                opened = false;
                             }
                         }, null);
                     } catch (CameraAccessException e) {
                         e.printStackTrace();
+                        opened = false;
                     }
                 }
 
@@ -148,6 +160,22 @@ public class CameraHandler {
 
         } catch (CameraAccessException e) {
             e.printStackTrace();
+            opened = false;
         }
+    }
+
+    public void removeListeners() {
+        mListeners = null;
+    }
+
+    public void close(){
+        if (mCaptureSession != null){
+            mCaptureSession.close();
+        }
+        removeListeners();
+    }
+
+    public boolean isOpened(){
+        return opened;
     }
 }

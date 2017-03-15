@@ -37,6 +37,8 @@ public class ClientThread extends Thread {
     }
 
     public static byte[] getActiveArray(ByteBuffer buffer) {
+        if (buffer == null)
+            return null;
         byte[] ret = new byte[buffer.remaining()];
         if (buffer.hasArray()) {
             byte[] array = buffer.array();
@@ -51,18 +53,17 @@ public class ClientThread extends Thread {
     @Override
     public void run() {
         boolean acquired = semaphore.tryAcquire();
-        OutputStream o = null;
+        OutputStream out = null;
         try {
-            o = socket.getOutputStream();
-            BufferedWriter out = new BufferedWriter(new OutputStreamWriter(o));
+            out = socket.getOutputStream();
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
             HttpResponse response;
             if (!acquired){
                 response = new ErrorPage(null, messageHandler).getErrorResponse(500, "Server too busy", "Please try again later...");
-                out.write(response.toString());
+                out.write(response.toString().getBytes());
                 out.flush();
-                o.close();
+                out.close();
                 socket.close();
                 Log.d("SERVER", "Socket Closed - server busy");
                 return;
@@ -72,32 +73,33 @@ public class ClientThread extends Thread {
             if (request.getUri().startsWith("/storage")){
                 response = new StoragePage(request, messageHandler).getResponse();
             }
-            else if (request.getUri().startsWith("/camera_sd")){
-                response = new CameraStreamPage(request, messageHandler).getResponse();
-            }
-            else if (request.getUri().startsWith("/camera_stream.mjpeg")){
+            //else if (request.getUri().startsWith("/camera_sd")){
+            //      response = new CameraStreamPage(request, messageHandler).getResponse();
+            //}
+            else if (request.getUri().startsWith("/camera_stream")){
                 response = new CameraStreamPage(request, messageHandler).getResponseMultipart();
-                response.setContentLength(0);
-                response.setContentType("multipart/x-mixed-replace; boundary=--BoundaryString");
-                o.write(response.toString().getBytes());
-                //o.write(getActiveArray((ByteBuffer) response.getBody()));
-                o.write("\r\n".getBytes());
-                o.flush();
-                while (true){
+                response.setContentLength(HttpResponse.NO_CONTENT_LENGTH);
+                response.addHeader("Cache-Control", "no-cache");
+                response.setContentType("multipart/x-mixed-replace; boundary=--freevideo");
+                out.write(response.toString().getBytes());
+                out.write("\r\n".getBytes());
+                out.flush();
+                while (SocketServer.isRunning()){
                     response = new CameraStreamPage(request, messageHandler).getResponseMultipart();
-                    response.setBoundary("--BoundaryString");
+                    response.setBoundary("--freevideo");
                     response.setContentType("image/jpeg");
-                    o.write(response.toString().getBytes());
-                    o.write(getActiveArray((ByteBuffer) response.getBody()));
-                    o.write("\r\n\r\n".getBytes());
-                    //o.flush();
-                    o.flush();
+                    out.write(response.toString().getBytes());
+                    out.write(getActiveArray((ByteBuffer) response.getBody()));
+                    out.write("\r\n\r\n".getBytes());
+                    out.flush();
                 }
+                out.close();
+                return;
             }
             else
                 response = new DefaultPage(request, messageHandler).getResponse();
 
-            out.write(response.toString());
+            out.write(response.toString().getBytes());
             out.flush();
             if (response.getBody() instanceof File) {
                 File f = (File) response.getBody();
@@ -105,14 +107,14 @@ public class ClientThread extends Thread {
                 byte[] bytes = new byte[1024];
                 int len = 0;
                 while ((len = r.read(bytes, 0, 1024)) > 0)
-                    o.write(bytes, 0, len);
-                o.flush();
+                    out.write(bytes, 0, len);
+                out.flush();
             }
             else if (response.getBody() instanceof ByteBuffer){
-                o.write(getActiveArray((ByteBuffer) response.getBody()));
-                o.flush();
+                out.write(getActiveArray((ByteBuffer) response.getBody()));
+                out.flush();
             }
-            o.close();
+            out.close();
             socket.close();
             Log.d("SERVER", "Socket Closed");
         } catch (IOException e) {
@@ -126,6 +128,7 @@ public class ClientThread extends Thread {
             if (!socket.isClosed())
                 try {
                     socket.close();
+                    Log.d("SERVER", "Socket Closed");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }

@@ -34,9 +34,6 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     private SocketServer s;
     private TextView log;
     private ScrollView scrollView;
-    private boolean safeToTakePicture = false;
-    private Camera mCamera;
-    private CameraPreview mPreview;
     private TextInputEditText maxThreads;
     private CameraHandler mCameraHandler;
     private Handler handler = new Handler(){
@@ -44,49 +41,14 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
             if ("camera".equals(((com.kru13.httpserver.Message) msg.obj).file)){
+                if (!mCameraHandler.isOpened())
+                    mCameraHandler.open((int) ((com.kru13.httpserver.Message) msg.obj).size);
                 mCameraHandler.registerListener(new MyCameraListener((com.kru13.httpserver.Message) msg.obj));
             }
             else {
                 String txt = log.getText() != null ? log.getText().toString() : "";
                 log.setText(txt + ((com.kru13.httpserver.Message) msg.obj).toString() + "\n");
                 scrollView.fullScroll(View.FOCUS_DOWN);
-            }
-        }
-    };
-
-    private Camera.PictureCallback mPicture = new Camera.PictureCallback() {
-
-        @Override
-        public void onPictureTaken(byte[] data, Camera camera) {
-            try {
-                camera.startPreview();
-                File pictureFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/camera_feed.jpg");
-                try {
-                    if (!pictureFile.exists()) {
-                        if (!pictureFile.createNewFile()) {
-                            Log.d(TAG, "File already created");
-                        }
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    return;
-                }
-
-                try {
-                    FileOutputStream fos = new FileOutputStream(pictureFile);
-                    fos.write(data);
-                    fos.close();
-                } catch (FileNotFoundException e) {
-                    Log.d(TAG, "File not found: " + e.getMessage());
-                } catch (IOException e) {
-                    Log.d(TAG, "Error accessing file: " + e.getMessage());
-                }
-            }
-            catch (Exception e){
-                e.printStackTrace();
-            }
-            finally {
-                safeToTakePicture = true;
             }
         }
     };
@@ -114,16 +76,12 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
         safeToTakePicture = true;
         */
         mCameraHandler = new CameraHandler(this);
-        mCameraHandler.open(0);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (mCamera != null) {
-            mCamera.release();
-            mCamera = null;
-        }
+        mCameraHandler.close();
     }
 
     @Override
@@ -162,6 +120,7 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+                mCameraHandler.close();
                 Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show();
                 s = null;
             } catch (Exception e){

@@ -10,6 +10,8 @@ import com.kru13.httpserver.HttpRequest;
 import com.kru13.httpserver.HttpResponse;
 
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.HashSet;
 
 /**
  * Created by smug2 on 07.03.2017.
@@ -27,7 +29,17 @@ public class CameraStreamPage extends WebPage {
     }
 
     public HttpResponse getResponseMultipart(){
-        com.kru13.httpserver.Message message = new com.kru13.httpserver.Message("camera", 0);
+        int id = 0;
+        HashMap<String, String> params = request.getUriParams();
+        if (params != null && params.containsKey("id")){
+            try {
+                id = Integer.valueOf(params.get("id"));
+            }
+            catch (Exception e){
+                e.printStackTrace();
+            }
+        }
+        com.kru13.httpserver.Message message = new com.kru13.httpserver.Message("camera", id);
         sendMessage(message);
         synchronized (message){
             try {

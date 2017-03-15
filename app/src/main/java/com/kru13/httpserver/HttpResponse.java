@@ -19,6 +19,7 @@ import java.util.TimeZone;
  */
 
 public class HttpResponse {
+    public static final int NO_CONTENT_LENGTH = -696;
     private int statusCode = 200;
     private String statusMessage = "OK";
     private Object body = "";
@@ -147,7 +148,8 @@ public class HttpResponse {
         sb.append("Content-Type: ");
         sb.append(contentType);
         sb.append("\r\n");
-        sb.append(String.format(Locale.US, "Content-Length: %d\r\n", getContentLength()));
+        if (getContentLength() != NO_CONTENT_LENGTH)
+            sb.append(String.format(Locale.US, "Content-Length: %d\r\n", getContentLength()));
         for (String key : headers.keySet()){
             sb.append(String.format(Locale.US, "%s: %s\r\n", key, headers.get(key)));
         }
