@@ -172,4 +172,10 @@ public class HttpResponse {
             return ((ByteBuffer) body).capacity();
         return 0;
     }
+
+    public void appendBody(String line) {
+        if (body instanceof String){
+            body += line;
+        }
+    }
 }

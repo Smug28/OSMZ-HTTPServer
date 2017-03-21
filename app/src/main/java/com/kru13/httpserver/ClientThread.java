@@ -7,6 +7,7 @@ import android.util.Log;
 import com.kru13.httpserver.pages.CameraStreamPage;
 import com.kru13.httpserver.pages.DefaultPage;
 import com.kru13.httpserver.pages.ErrorPage;
+import com.kru13.httpserver.pages.RunCommandPage;
 import com.kru13.httpserver.pages.StoragePage;
 
 import java.io.BufferedReader;
@@ -96,6 +97,8 @@ public class ClientThread extends Thread {
                 out.close();
                 return;
             }
+            else if (request.getUri().startsWith("/cgi-bin"))
+                response = new RunCommandPage(request, messageHandler).getResponse();
             else
                 response = new DefaultPage(request, messageHandler).getResponse();
 
