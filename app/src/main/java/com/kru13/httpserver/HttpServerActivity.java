@@ -2,11 +2,16 @@ package com.kru13.httpserver;
 
 import android.Manifest;
 import android.annotation.TargetApi;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.pm.PackageManager;
 import android.hardware.Camera;
 import android.hardware.camera2.CameraManager;
 import android.os.*;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.support.annotation.NonNull;
 import android.support.design.widget.TextInputEditText;
 import android.support.v7.app.AppCompatActivity;
@@ -35,23 +40,7 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     private TextView log;
     private ScrollView scrollView;
     private TextInputEditText maxThreads;
-    private CameraHandler mCameraHandler;
-    private Handler handler = new Handler(){
-        @Override
-        public void handleMessage(Message msg) {
-            super.handleMessage(msg);
-            if ("camera".equals(((com.kru13.httpserver.Message) msg.obj).file)){
-                if (!mCameraHandler.isOpened())
-                    mCameraHandler.open((int) ((com.kru13.httpserver.Message) msg.obj).size);
-                mCameraHandler.registerListener(new MyCameraListener((com.kru13.httpserver.Message) msg.obj));
-            }
-            else {
-                String txt = log.getText() != null ? log.getText().toString() : "";
-                log.setText(txt + ((com.kru13.httpserver.Message) msg.obj).toString() + "\n");
-                scrollView.fullScroll(View.FOCUS_DOWN);
-            }
-        }
-    };
+    private MyBroadcastReceiver receiver = new MyBroadcastReceiver();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,20 +57,23 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 
         log = (TextView) findViewById(R.id.log);
         scrollView = (ScrollView) findViewById(R.id.scroll_view);
+    }
 
-        /*
-        mCamera = CameraHandler.getCameraInstance();
-        mPreview = new CameraPreview(this, mCamera);
-        ((FrameLayout) findViewById(R.id.camera_preview)).addView(mPreview);
-        safeToTakePicture = true;
-        */
-        mCameraHandler = new CameraHandler(this);
+    @Override
+    protected void onResume() {
+        super.onResume();
+        registerReceiver(receiver, new IntentFilter(HttpService.ACTION_LOG));
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(receiver);
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        mCameraHandler.close();
     }
 
     @Override
@@ -100,13 +92,12 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
                 requestPermissions(NEEDED_PERMISSIONS, 88);
                 return;
             }
-            if (s != null){
+            if (HttpService.isRunnting){
                 Toast.makeText(this, "Server already running", Toast.LENGTH_SHORT).show();
                 return;
             }
             try {
-                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
-                s.start();
+                startService();
                 Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
             } catch (Exception e){
                 Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
@@ -114,15 +105,8 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
 		}
 		if (v.getId() == R.id.button2) {
             try {
-                s.close();
-                try {
-                    s.join();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
-                mCameraHandler.close();
+                stopService(new Intent(getApplicationContext(), HttpService.class));
                 Toast.makeText(this, "Server stopped", Toast.LENGTH_SHORT).show();
-                s = null;
             } catch (Exception e){
                 Toast.makeText(this, "Server already stopped", Toast.LENGTH_SHORT).show();
             }
@@ -159,27 +143,28 @@ public class HttpServerActivity extends AppCompatActivity implements OnClickList
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if (requestCode == 88 && handlePermissionResult(permissions, grantResults)){
             try {
-                s = new SocketServer(handler, Integer.valueOf(maxThreads.getText().toString()));
+                startService();
             } catch (Exception e){
                 Toast.makeText(this, "Could not start server", Toast.LENGTH_SHORT).show();
                 return;
             }
-            s.start();
             Toast.makeText(this, "Server running", Toast.LENGTH_SHORT).show();
         }
     }
 
-    class MyCameraListener implements CameraListener {
-        com.kru13.httpserver.Message message;
-        public MyCameraListener(com.kru13.httpserver.Message msg){
-            message = msg;
-        }
+    private void startService(){
+        Intent i = new Intent(getApplicationContext(), HttpService.class);
+        PreferenceManager.getDefaultSharedPreferences(this).edit().putInt("threads", Integer.valueOf(maxThreads.getText().toString())).commit();
+        startService(i);
+    }
+
+    private class MyBroadcastReceiver extends BroadcastReceiver {
 
         @Override
-        public void onNewImage(ByteBuffer image) {
-            synchronized (message) {
-                message.setBuffer(ClientThread.getActiveArray(image));
-                message.notifyAll();
+        public void onReceive(Context context, Intent intent) {
+            if (HttpService.ACTION_LOG.equals(intent.getAction())){
+                log.setText(log.getText().toString() + intent.getStringExtra("log"));
+                scrollView.fullScroll(View.FOCUS_DOWN);
             }
         }
     }
